@@ -1,0 +1,93 @@
+data_dir="./data"
+host="127.0.0.1"
+http_port=8282
+tcp_port=8283
+tls_key="key.pem"
+
+[api]
+#http://127.0.0.1:8282/api/v1/
+enabled=false
+auth={api_key="", api_secret=""}
+
+[admin]
+#http://127.0.0.1:8282/admin
+enabled=false
+auth={username="", pass=""}
+
+[metrics]
+enabled=false
+auth={user="", pwd=""}
+
+
+[sources]
+
+[sources.in]
+type = "stdin"
+
+#fake generator source
+[sources.generate_log]
+type = "dummy"
+props= {
+    name="string"
+    level="choice(info|warn|debug|error)"
+    msg="text"
+}
+format = "csv|text|json"
+rate = "100/s|cron|every 1s"
+duration="2h"
+
+# rapidpro source generator
+[sources.rapidpro]
+type="http"
+path="/rapidpro" #will generate an endpoint host:port/sources/http/:rapidpro
+encoding= "json|ndjson|binary|text"
+auth={}
+
+[sources.remote_http]
+target="123.635.98.23:80" # will scrap by sending last_fetch_id
+encoding= "json|ndjson|binary|text"
+auth={}
+fetch_interval="cron|every-1s"
+
+[sources.chatbot]
+type="websocket"
+path="/chatbot" # host:port/sources/websocket/:chatbot
+encoding="json"
+
+
+[transformers]
+
+[transformers.add_meta]
+type="drl"
+input = ["sources.rapidpro"]
+script = '''
+output._source = input
+output.age = 3
+if input.step then
+    output.has_step = true
+endif
+'''
+
+[transformers.to_csv]
+type="drl"
+input = ["transformers.add_meta"]
+path = "./script.drl"
+
+[transformers.optimus]
+type="drl"
+input = ["transformers.to_csv"]
+path = "./prime.drl"
+
+[sinks]
+
+[sinks.fhire]
+input = ["transformers.to_csv"]
+target="http://fhire.io:8080"
+auth = {username="", pass="${PASS}", api_key="${FHIRE_API_KEY}"}
+
+[sinks.conosle_logs]
+type = "console"
+inputs = [ "dhsi2" ]
+target = "stdout|stderr"
+encoding= "json|ndjson|binary|text"
+
