@@ -1,4 +1,4 @@
-module github.com/evanxg852000/diffuser
+module github.com/evanxg852000/liveview
 
 go 1.17
 
